@@ -112,7 +112,7 @@ class Sandbox:public Vrui::Application,public GLObject
 		WaterRenderer* waterRenderer; // Un renderizador para representar la superficie del agua como geometría
 		
 		/* Constructores y destructores: */
-		RenderSettings(bool line); // Crea configuraciones de representación predeterminadas
+		RenderSettings(void); // Crea configuraciones de representación predeterminadas
 		RenderSettings(const RenderSettings& source); // Copia constructor
 		~RenderSettings(void); // Destruye la configuración de representación
 		
@@ -141,6 +141,7 @@ class Sandbox:public Vrui::Application,public GLObject
 	Box bbox; // Cuadro delimitador alrededor de todas las superficies potenciales
 	WaterTable2* waterTable; // Objeto de simulación de flujo de agua
 	double waterSpeed; // Velocidad relativa de la simulación del flujo de agua.
+	double lavaSpeed; // Velocidad relativa de la simulación del flujo de lava.
 	unsigned int waterMaxSteps; // Número máximo de pasos de simulación de agua por cuadro
 	GLfloat rainStrength; // Cantidad de agua depositada por herramientas y objetos de lluvia en cada paso de simulación de agua
 	HandExtractor* handExtractor; // Objeto para detectar manos extendidas sobre la superficie de arena para hacer que llueva

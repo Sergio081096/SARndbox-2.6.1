@@ -229,47 +229,49 @@ Methods of class HandExtractor:
 ******************************/
 
 void* HandExtractor::extractorThreadMethod(void)
-	{
-	unsigned int lastInputFrameVersion=0;	
+{
+	unsigned int lastInputFrameVersion = 0;	
 	std::cout<<"11.2: ExtractorThreadMethod "<< std::endl;
 	std::cout<<"11.3: ExtractHands "<< std::endl;
 	while(true)
 	{
 		Kinect::FrameBuffer frame;
 		{
-		Threads::MutexCond::Lock inputLock(inputCond);
-		
-		/* Espere hasta que llegue un nuevo marco o el programa se apague: */
-		while(runExtractorThread && lastInputFrameVersion==inputFrameVersion)
-			inputCond.wait(inputLock);// agregar el anterior
-		
-		/* Salte si el programa se está cerrando: */
-		if(!runExtractorThread)
-			break;
-		
-		/* Trabaja en el nuevo marco: */
-		frame=inputFrame;
+			Threads::MutexCond::Lock inputLock(inputCond);
+			
+			/* Espere hasta que llegue un nuevo marco o el programa se apague: */
+			while(runExtractorThread && (lastInputFrameVersion == inputFrameVersion))
+			{
+				inputCond.wait(inputLock);// agregar el anterior
+			}
+			
+			/* Salte si el programa se está cerrando: */
+			if(!runExtractorThread)
+			{
+				break;
+			}
+			
+			/* Trabaja en el nuevo marco: */
+			frame = inputFrame;
 
-		//std::cout<<"frame-> "<< inputFrameVersion << std::endl;
-		lastInputFrameVersion=inputFrameVersion;
+			//std::cout<<"frame-> "<< inputFrameVersion << std::endl;
+			lastInputFrameVersion = inputFrameVersion;
 		}
 		
 		/* Prepare una nueva lista manual de salida: */
-		HandList& newHandList=extractedHands.startNewValue();
+		HandList& newHandList = extractedHands.startNewValue();
 		
 		/* Extraer manos del nuevo marco de entrada: */
-		HandExtractor::extractHands(frame.getData<DepthPixel>(),newHandList,0);
+		HandExtractor::extractHands(frame.getData<DepthPixel>(), newHandList, 0);
 		
 		/* Finalice la nueva lista de manos extraídas en el búfer de salida: */
 		extractedHands.postNewValue();
 		
-		/* Pase el nuevo marco de salida al receptor registrado: */
-		if(handsExtractedFunction!=0)
-			(*handsExtractedFunction)(newHandList);
+		
 	}
 	
 	return 0;
-	}
+}
 
 HandExtractor::HandExtractor(const unsigned int sDepthFrameSize[2],
 	const HandExtractor::PixelDepthCorrection* sPixelDepthCorrection,
@@ -299,31 +301,32 @@ HandExtractor::HandExtractor(const unsigned int sDepthFrameSize[2],
 	}
 	
 	/* Asigne la imagen de ID de blob: */
-	blobIdImage=new unsigned short[(depthFrameSize[1]+2)*(depthFrameSize[0]+2)];
-	biStride=depthFrameSize[0]+2;// 642
+	blobIdImage = new unsigned short[(depthFrameSize[1]+2)*(depthFrameSize[0]+2)];
+	//std::cout<<"biPtr-> " << invalidBlobId << std::endl;
+	biStride = depthFrameSize[0]+2;// 642
 	
 	/* Inicialice el borde de la imagen de ID de blob: */
-	unsigned short* biPtr=blobIdImage;
-	for(unsigned int x=1;x<depthFrameSize[0]+2;++x,++biPtr)
-		*biPtr=invalidBlobId;
-	for(unsigned int y=1;y<depthFrameSize[1]+2;++y,biPtr+=biStride)
-		*biPtr=invalidBlobId;
-	for(unsigned int x=1;x<depthFrameSize[0]+2;++x,--biPtr)
-		*biPtr=invalidBlobId;
-	for(unsigned int y=1;y<depthFrameSize[1]+2;++y,biPtr-=biStride)
-		*biPtr=invalidBlobId;
+	unsigned short* biPtr = blobIdImage;
+	for(unsigned int x = 1;x < depthFrameSize[0]+2;++x, ++biPtr)
+		*biPtr = invalidBlobId;
+	for(unsigned int y = 1;y < depthFrameSize[1]+2;++y,biPtr += biStride)
+		*biPtr = invalidBlobId;
+	for(unsigned int x = 1;x < depthFrameSize[0]+2;++x,--biPtr)
+		*biPtr = invalidBlobId;
+	for(unsigned int y = 1;y < depthFrameSize[1]+2;++y,biPtr -= biStride)
+		*biPtr = invalidBlobId;
 	
 	/* Calcule la matriz de compensaciones de puntero para caminar por el borde: */
 	for(int i=0;i<8;++i)
 	{
-		walkOffsets[i]=walkDy[i]*biStride+walkDx[i];// 1 643 642 641 * -1
+		walkOffsets[i] = walkDy[i] * biStride + walkDx[i];// 1 643 642 641 * -1
 	}
 	
 	/* Calcule la matriz de compensaciones de puntero para caminar al borde: */	
 	HandExtractor::setSnakeLength(snakeLength);// 50
 	
 	/* Iniciar el hilo de extracción de mano: */
-	runExtractorThread=true;
+	runExtractorThread = true;
 	extractorThread.start(this,&HandExtractor::extractorThreadMethod);
 	}
 
@@ -360,10 +363,10 @@ void HandExtractor::setBlobSizeRange(unsigned int newMinBlobSize,unsigned int ne
 void HandExtractor::setSnakeLength(unsigned int newSnakeLength)
 	{
 	std::cout<<"11.1: SetSnakeLength " << std::endl;
-	snakeLength=newSnakeLength;// 50	
+	snakeLength = newSnakeLength;// 50	
 	/* Vuelva a asignar la matriz de serpientes: */
 	delete[] snake;
-	snake=new EdgePixel[snakeLength];
+	snake = new EdgePixel[snakeLength];
 	}
 
 void HandExtractor::setCornerDists(int newMaxCornerEnterDist,int newMinCenterDist,int newMinCornerExitDist)
@@ -373,52 +376,56 @@ void HandExtractor::setCornerDists(int newMaxCornerEnterDist,int newMinCenterDis
 	minCornerExitDist=newMinCornerExitDist;
 	}
 
-void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,HandExtractor::HandList& hands,Images::RGBImage* blobImage)
+void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame, HandExtractor::HandList& hands, Images::RGBImage* blobImage)
 	{
 	//std::cout<<"11.3: ExtractHands "<< std::endl;
 	Images::RGBImage::Color* imgPtr=0;
-	if(blobImage!=0)
-		{
+	if(blobImage != 0)
+	{
 		/* Crea la imagen del resultado: */
 		blobImage->clear(Images::RGBImage::Color(0,0,0));
-		imgPtr=blobImage->replacePixels();
-		}
+		imgPtr = blobImage->replacePixels();
+	}
 	
 	/* Extraiga todos los blobs de primer plano conectados a cuatro del marco de profundidad dado: */
 	std::vector<Span> spans;
-	unsigned int numSpans=0;
-	unsigned int lastRowSpan=0;
-	const DepthPixel* dfRowPtr=depthFrame;
-	for(unsigned int y=0;y<depthFrameSize[1];++y,dfRowPtr+=depthFrameSize[0])// 640 x 480
+	unsigned int numSpans = 0;
+	unsigned int lastRowSpan = 0;
+	const DepthPixel* dfRowPtr = depthFrame;
+	for(unsigned int y = 0;y < depthFrameSize[1];++y, dfRowPtr += depthFrameSize[0])// 640 x 480
 	{
-		const DepthPixel* dfPtr=dfRowPtr;
-		unsigned int rowSpan=numSpans;
-		unsigned int x=0;
+		const DepthPixel* dfPtr = dfRowPtr;
+		unsigned int rowSpan = numSpans;
+		unsigned int x = 0;
 		while(true)
 		{
 			/* Encuentra el comienzo del siguiente tramo de primer plano: */
 			for(;x<depthFrameSize[0] && *dfPtr>maxFgDepth; ++x,++dfPtr)
 				;
-			if(x>=depthFrameSize[0])
+			if(x >= depthFrameSize[0])
+			{
 				break;
+			}
 			
 			/* Iniciar un nuevo tramo de primer plano: */
 			Span newSpan;
-			newSpan.y=y;
-			newSpan.start=x;
+			newSpan.y = y;
+			newSpan.start = x;
 			
 			/* Traza el lapso actual en primer plano: */
-			DepthPixel lastDepth=*dfPtr;
+			DepthPixel lastDepth = *dfPtr;
 			++x;
 			++dfPtr;
-			for(;x<depthFrameSize[0] && *dfPtr <= maxFgDepth && *dfPtr + maxDepthDist >= lastDepth && *dfPtr <= lastDepth + maxDepthDist;++x,++dfPtr)
-				lastDepth=*dfPtr;
+			for( ;(x < depthFrameSize[0]) && (*dfPtr <= maxFgDepth) && *dfPtr + maxDepthDist >= lastDepth && *dfPtr <= lastDepth + maxDepthDist;++x, ++dfPtr)
+			{
+				lastDepth = *dfPtr;
+			}
 			
 			/* Finalice y almacene el nuevo lapso de primer plano: */
-			newSpan.end=x;
-			newSpan.parent=numSpans;
-			newSpan.numPixels=newSpan.end-newSpan.start;
-			newSpan.blobId=invalidBlobId;
+			newSpan.end = x;
+			newSpan.parent = numSpans;
+			newSpan.numPixels = newSpan.end-newSpan.start;
+			newSpan.blobId = invalidBlobId;
 			spans.push_back(newSpan);
 			++numSpans;
 			
@@ -427,70 +434,70 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 				;
 			
 			/* Compruebe si el intervalo actual se vincula con alguno de la fila anterior: */
-			for(unsigned int lrs=lastRowSpan;lrs<rowSpan&&spans[lrs].start<=newSpan.end;++lrs)
+			for(unsigned int lrs = lastRowSpan;lrs < rowSpan&&spans[lrs].start <= newSpan.end;++lrs)
 			{
 				/* Compruebe si los dos tramos tienen profundidad en común: */
-				unsigned int o1=Misc::max(newSpan.start,spans[lrs].start);
-				unsigned int o2=Misc::min(newSpan.end,spans[lrs].end);
-				const DepthPixel* lrsPtr1=dfRowPtr+o1;
-				const DepthPixel* lrsPtr0=lrsPtr1-depthFrameSize[0];
-				bool canLink=false;
-				for(unsigned int o=o1;o<o2&&!canLink;++o,++lrsPtr0,++lrsPtr1)
-					canLink=*lrsPtr0+maxDepthDist >= *lrsPtr1 && *lrsPtr0 <= *lrsPtr1 + maxDepthDist;
+				unsigned int o1 = Misc::max(newSpan.start, spans[lrs].start);
+				unsigned int o2 = Misc::min(newSpan.end, spans[lrs].end);
+				const DepthPixel* lrsPtr1 = dfRowPtr + o1;
+				const DepthPixel* lrsPtr0 = lrsPtr1 - depthFrameSize[0];
+				bool canLink = false;
+				for(unsigned int o = o1;(o < o2) && !canLink;++o,++lrsPtr0,++lrsPtr1)
+					canLink = *lrsPtr0 + maxDepthDist >= *lrsPtr1 && *lrsPtr0 <= *lrsPtr1 + maxDepthDist;
 				
 				/* Combina los dos tramos si pueden enlazar: */
 				if(canLink)
 				{
 					/* Encuentre las raíces de los respectivos subárboles de los dos tramos: */
-					unsigned int root1=lrs;
-					while(root1!=spans[root1].parent)
-						root1=spans[root1].parent;
-					unsigned int root2=numSpans-1;
-					while(root2!=spans[root2].parent)
-						root2=spans[root2].parent;
+					unsigned int root1 = lrs;
+					while(root1 != spans[root1].parent)
+						root1 = spans[root1].parent;
+					unsigned int root2 = numSpans-1;
+					while(root2 != spans[root2].parent)
+						root2 = spans[root2].parent;
 					
-					if(root1<root2)
+					if(root1 < root2)
 					{
 						/* Haz que el primer lapso sea la nueva raíz: */
-						spans[root2].parent=root1;
-						spans[root1].numPixels+=spans[root2].numPixels;
+						spans[root2].parent = root1;
+						spans[root1].numPixels += spans[root2].numPixels;
 					}
 					else if(root1>root2)
 					{
 						/* Haz que el segundo tramo de la nueva raíz: */
-						spans[root1].parent=root2;
-						spans[root2].numPixels+=spans[root1].numPixels;
+						spans[root1].parent = root2;
+						spans[root2].numPixels += spans[root1].numPixels;
 					}
 				}
 			}
 		}
 		
 		/* Omita cualquier espacio restante de la fila anterior: */
-		lastRowSpan=rowSpan;
+		lastRowSpan = rowSpan;
 	}
 	
 	/* Asigne ID de blob consecutivos a todos los tramos raíz: */
-	unsigned int nextBlobId=0;
-	for(unsigned int i=0;i<numSpans;++i)
+	unsigned int nextBlobId = 0;
+	for(unsigned int i = 0;i < numSpans;++i)
 	{
 		/* Compruebe si el tramo es un tramo raíz: */
-		if(spans[i].parent==i)
+		if(spans[i].parent == i)
 		{
-			if(spans[i].numPixels>=minBlobSize&&spans[i].numPixels<=maxBlobSize)
+			if(spans[i].numPixels >= minBlobSize && spans[i].numPixels <= maxBlobSize)
 			{
-				spans[i].blobId=nextBlobId;
+				spans[i].blobId = nextBlobId;
 				++nextBlobId;
 			}
 		}
 		else
 		{
 			/* Encuentre la raíz del subárbol del span: */
-			unsigned int root=spans[i].parent;
-			while(root!=spans[root].parent)
-				root=spans[root].parent;
+			unsigned int root = spans[i].parent;
+			while(root != spans[root].parent)
+				root = spans[root].parent;
 			
 			/* Asigne la ID de blob del tramo desde la raíz: */
-			spans[i].blobId=spans[root].blobId;
+			spans[i].blobId = spans[root].blobId;
 		}
 	}
 	
@@ -538,24 +545,24 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 	#endif
 	
 	/* Crear una matriz de puntos de origen de blob: */
-	BlobOrigin* blobOrigins=new BlobOrigin[nextBlobId];
-	for(unsigned int i=0;i<nextBlobId;++i)
-		blobOrigins[i].assigned=false;
+	BlobOrigin* blobOrigins = new BlobOrigin[nextBlobId];
+	for(unsigned int i=0;i < nextBlobId;++i)
+		blobOrigins[i].assigned = false;
 	
 	/* Crear la imagen de ID blob: */
-	unsigned short* biRowPtr=blobIdImage+biStride+1;
-	unsigned int spanIndex=0;
-	for(unsigned int y=0;y<depthFrameSize[1];++y,biRowPtr+=biStride)
-		{
+	unsigned short* biRowPtr = blobIdImage+biStride+1;
+	unsigned int spanIndex = 0;
+	for(unsigned int y=0;y < depthFrameSize[1];++y, biRowPtr += biStride)
+	{
 		/* Procese todos los espacios y espacios entre los espacios en la fila actual: */
 		unsigned int x=0;
-		unsigned short* biPtr=biRowPtr;
+		unsigned short* biPtr = biRowPtr;
 		while(true)
-			{
+		{
 			/* Encuentre el inicio del siguiente tramo en la fila actual: */
-			unsigned int nextSpanStart=depthFrameSize[0];
-			if(spanIndex<numSpans&&spans[spanIndex].y==y)
-				nextSpanStart=spans[spanIndex].start;
+			unsigned int nextSpanStart = depthFrameSize[0];
+			if(spanIndex < numSpans && spans[spanIndex].y == y)
+				nextSpanStart = spans[spanIndex].start;
 			
 			/* Asigne los ID de blob no válidos hasta el inicio del siguiente intervalo: */
 			for(;x<nextSpanStart;++x,++biPtr)
@@ -566,15 +573,15 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 				break;
 			
 			/* Verifique si la burbuja del tramo actual es válida, y se encontró por primera vez:lapso */
-			unsigned int blobId=spans[spanIndex].blobId;
-			if(blobId<nextBlobId&&!blobOrigins[blobId].assigned)
-				{
+			unsigned int blobId = spans[spanIndex].blobId;
+			if(blobId < nextBlobId && !blobOrigins[blobId].assigned)
+			{
 				/* Almacene el comienzo del intervalo actual como el origen del blob: */
 				blobOrigins[blobId].assigned=true;
 				blobOrigins[blobId].x=x;
 				blobOrigins[blobId].y=y;
 				blobOrigins[blobId].biPtr=biPtr;
-				}
+			}
 			
 			/* Asigne la ID de blob del tramo actual: */
 			for(;x<spans[spanIndex].end;++x,++biPtr)
@@ -582,8 +589,8 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 			
 			/* Ir al siguiente lapso: */
 			++spanIndex;
-			}
 		}
+	}
 	
 	/* Inicializar la lista de resultados: */
 	hands.clear();
@@ -595,32 +602,32 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 	int exitDist2=Math::sqr(minCornerExitDist);
 	std::vector<Corner> corners;
 	corners.reserve(10);
-	for(unsigned int blobId=0;blobId<nextBlobId;++blobId)
-		{
+	//std::cout << "ciclo-> " << nextBlobId << std::endl;
+	for(unsigned int blobId=0;blobId < nextBlobId;++blobId)
+	{
 		/* Inicializa la serpiente que camina al borde: */
-		EdgePixel* snakeHead=snake;
-		snakeHead->x=int(blobOrigins[blobId].x);
-		snakeHead->y=int(blobOrigins[blobId].y);
-		snakeHead->biPtr=blobOrigins[blobId].biPtr;
+		EdgePixel* snakeHead = snake;
+		snakeHead->x = int(blobOrigins[blobId].x);
+		snakeHead->y = int(blobOrigins[blobId].y);
+		snakeHead->biPtr = blobOrigins[blobId].biPtr;
 		unsigned int walkDir=0; // El origen del blob es el píxel inferior izquierdo del blob, por lo que 0 es la dirección inicial correcta para moverse		for(unsigned int i=1;i<snakeLength;++i)
-			{
-			/* Gire 90 grados en sentido horario: */
-			walkDir=(walkDir+6)&0x7U;
+		/* Gire 90 grados en sentido horario: */
+		walkDir = (walkDir+6)&0x7U;
+		
+		/* Gire en sentido antihorario hasta que el siguiente paso permanezca en el mismo blob: */
+		while(snakeHead->biPtr[walkOffsets[walkDir]] != blobId)
+			walkDir = (walkDir+1)&0x7U;
+		
+		/* Camina un paso a lo largo del borde de la mancha: */
+		snakeHead[1].x = snakeHead->x + walkDx[walkDir];
+		snakeHead[1].y = snakeHead->y + walkDy[walkDir];
+		snakeHead[1].biPtr = snakeHead->biPtr + walkOffsets[walkDir];
 			
-			/* Gire en sentido antihorario hasta que el siguiente paso permanezca en el mismo blob: */
-			while(snakeHead->biPtr[walkOffsets[walkDir]]!=blobId)
-				walkDir=(walkDir+1)&0x7U;
-			
-			/* Camina un paso a lo largo del borde de la mancha: */
-			snakeHead[1].x=snakeHead->x+walkDx[walkDir];
-			snakeHead[1].y=snakeHead->y+walkDy[walkDir];
-			snakeHead[1].biPtr=snakeHead->biPtr+walkOffsets[walkDir];
-			
-			/* Mueve la cabeza de serpiente hacia adelante: */
-			++snakeHead;
-			}
-		EdgePixel* snakeTail=snake;
-		EdgePixel* snakeMid=snake+snakeLength/2;
+		/* Mueve la cabeza de serpiente hacia adelante: */
+		++snakeHead;
+		
+		EdgePixel* snakeTail = snake;
+		EdgePixel* snakeMid = snake + snakeLength/2;
 		
 		/* Camina la serpiente exactamente una vez alrededor de la mancha: */
 		Corner corner;
@@ -630,19 +637,19 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 		int firstCornerDist2=0;
 		unsigned int firstCornerStart=0;
 		do
-			{
+		{
 			/* Compruebe si la serpiente actual se encuentra en una esquina: */
-			int newCornerType=0;
-			int headTailDist2=Math::sqr(snakeHead->x-snakeTail->x)+Math::sqr(snakeHead->y-snakeTail->y);
-			int centerElevation2=0;
-			if(headTailDist2<=enterDist2)
-				{
+			int newCornerType = 0;
+			int headTailDist2 = Math::sqr(snakeHead->x-snakeTail->x) + Math::sqr(snakeHead->y-snakeTail->y);
+			int centerElevation2 = 0;
+			if(headTailDist2 <= enterDist2)
+			{
 				/* Determine el tipo de esquina comparando el punto central de la serpiente con la línea definida por su cabeza y cola: */
-				int nx=snakeTail->y-snakeHead->y;
-				int ny=snakeHead->x-snakeTail->x;
-				int d=nx*(snakeMid->x-snakeTail->x)+ny*(snakeMid->y-snakeTail->y);
-				if(Math::sqr(d)>=centerDist2*headTailDist2)
-					{
+				int nx = snakeTail->y-snakeHead->y;
+				int ny = snakeHead->x-snakeTail->x;
+				int d = nx*(snakeMid->x-snakeTail->x)+ny*(snakeMid->y-snakeTail->y);
+				if(Math::sqr(d) >= centerDist2*headTailDist2)
+				{
 					/* Introduzca el estado de la esquina: */
 					if(d<0)
 						newCornerType=1; // Punta del dedo
@@ -652,24 +659,24 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 						centerElevation2=Math::sqr(d)/headTailDist2;
 					else
 						centerElevation2=Math::sqr(snakeMid->x-snakeTail->x)+Math::sqr(snakeMid->y-snakeTail->y);
-					}
 				}
+			}
 			
 			/* Compruebe si la serpiente cambió el tipo de esquina desde el último paso: */
 			if(corner.cornerType!=newCornerType)
-				{
+			{
 				if(corner.cornerType!=0)
-					{
+				{
 					/* Si la esquina anterior es la primera, recuerda su distancia de la esquina: */
 					if(corners.empty())
 						firstCornerDist2=cornerDist2;
 					
 					/* Almacenar la esquina anterior: */
 					corners.push_back(corner);
-					}
+				}
 				
 				if(newCornerType!=0)
-					{
+				{
 					/* Comience una nueva esquina: */
 					corner.start=pixelIndex;
 					corner.x=snakeMid->x;
@@ -679,21 +686,21 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 					/* Si esta es la primera esquina, recuerde su píxel inicial: */
 					if(corners.empty())
 						firstCornerStart=pixelIndex;
-					}
+				}
 				
 				/* Cambiar el tipo de la esquina actual: */
 				corner.cornerType=newCornerType;
-				}
+			}
 			else if(corner.cornerType!=0&&cornerDist2<centerElevation2)
-				{
+			{
 				/* Actualiza la esquina actual: */
 				corner.x=snakeMid->x;
 				corner.y=snakeMid->y;
 				cornerDist2=centerElevation2;
-				}
+			}
 			
 			if(imgPtr!=0)
-				{
+			{
 				/* Dibuja el punto central de la serpiente: */
 				Images::RGBImage::Color* cPtr=imgPtr+(snakeMid->y*depthFrameSize[0]+snakeMid->x);
 				if(corner.cornerType==1)
@@ -701,15 +708,15 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 				else if(corner.cornerType==-1)
 					*cPtr=Images::RGBImage::Color(160,96,160);
 				else
-					{
+				{
 					#if 1
 					*cPtr=Images::RGBImage::Color(128,128,128);
 					#else
 					for(int i=0;i<3;++i)
 						(*cPtr)[i]=(*cPtr)[i]+(255U-(*cPtr)[i])/2;
 					#endif
-					}
 				}
+			}
 			
 			/* Moverse un paso a lo largo del borde de la mancha: */
 			walkDir=(walkDir+6)&0x7U; // Gire 90 grados en sentido antihorario
@@ -727,39 +734,39 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 				snakeTail=snake;
 			
 			++pixelIndex;
-			}
+		}
 		while(snakeTail->biPtr!=blobOrigins[blobId].biPtr);
 		
 		if(corner.cornerType!=0)
-			{
+		{
 			if(!corners.empty()&&firstCornerStart==0&&corners.front().cornerType==corner.cornerType)
-				{
+			{
 				/* Combina las primeras y últimas esquinas: */
 				if(firstCornerDist2<cornerDist2)
-					{
+				{
 					corners.front().x=corner.x;
 					corners.front().y=corner.y;
-					}
-				}
-			else
-				{
-				/* Almacenar la última esquina: */
-				corners.push_back(corner);
 				}
 			}
+			else
+			{
+				/* Almacenar la última esquina: */
+				corners.push_back(corner);
+			}
+		}
 		
 		if(imgPtr!=0)
-			{
+		{
 			/* Dibuja todas las esquinas: */
 			for(std::vector<Corner>::iterator cIt=corners.begin();cIt!=corners.end();++cIt)
-				{
+			{
 				Images::RGBImage::Color* cPtr=imgPtr+(cIt->y*depthFrameSize[0]+cIt->x);
 				if(cIt->cornerType==1)
 					*cPtr=Images::RGBImage::Color(0,255,0);
 				else if(cIt->cornerType==-1)
 					*cPtr=Images::RGBImage::Color(255,0,255);
-				}
 			}
+		}
 		
 		/* Compruebe si el conjunto de esquinas extraído coincide con un modelo de mano: */
 		float maxProb=minHandProbability;
@@ -768,9 +775,9 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 		float radius=0.0f; // Radio de la mano
 		size_t numCorners=corners.size();
 		if(numCorners>=8) // Al menos cuatro puntas de los dedos, tres rincones y una punta del pulgar (rincon opcional)
-			{
+		{
 			for(size_t i=0;i<numCorners;++i)
-				{
+			{
 				/* Compruebe si la esquina actual inicia una secuencia de cuatro puntas intercaladas con tres rincones: */
 				Corner& t0=corners[i];
 				Corner& n1=corners[(i+1)%numCorners];
@@ -783,7 +790,7 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 				   n1.cornerType==-1&&t1.cornerType==1&&
 				   n2.cornerType==-1&&t2.cornerType==1&&
 				   n3.cornerType==-1&&t3.cornerType==1)
-					{
+				{
 					/* Construye un modelo de mano: */
 					Point2 tp0(float(t0.x)+0.5f,float(t0.y)+0.5f);
 					Point2 np1(float(n1.x)+0.5f,float(n1.y)+0.5f);
@@ -822,7 +829,7 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 					prob*=fingerLength.getMin()/fingerLength.getMax();
 					
 					if(maxProb<prob)
-						{
+					{
 						/* Calcular la relación entre la longitud del dedo y la distancia del rincón: */
 						float fdNdRatio=Math::mid(Geometry::dist(tp1,rp1),Geometry::dist(tp2,rp2))/Math::mid(Geometry::dist(np1,np2),Geometry::dist(np2,np3));
 						
@@ -836,7 +843,7 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 						/* Calcule la profundidad promedio de la mano en el espacio de imagen de profundidad con corrección de profundidad: */
 						depth=0.0f;
 						if(pixelDepthCorrection!=0)
-							{
+						{
 							ptrdiff_t t0Off=t0.y*depthFrameSize[0]+t0.x;
 							depth+=pixelDepthCorrection[t0Off].correct(float(depthFrame[t0Off]));
 							ptrdiff_t n1Off=n1.y*depthFrameSize[0]+n1.x;
@@ -851,9 +858,9 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 							depth+=pixelDepthCorrection[n3Off].correct(float(depthFrame[n3Off]));
 							ptrdiff_t t3Off=t3.y*depthFrameSize[0]+t3.x;
 							depth+=pixelDepthCorrection[t3Off].correct(float(depthFrame[t3Off]));
-							}
+						}
 						else
-							{
+						{
 							depth+=float(depthFrame[t0.y*depthFrameSize[0]+t0.x]);
 							depth+=float(depthFrame[n1.y*depthFrameSize[0]+n1.x]);
 							depth+=float(depthFrame[t1.y*depthFrameSize[0]+t1.x]);
@@ -861,28 +868,28 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 							depth+=float(depthFrame[t2.y*depthFrameSize[0]+t2.x]);
 							depth+=float(depthFrame[n3.y*depthFrameSize[0]+n3.x]);
 							depth+=float(depthFrame[t3.y*depthFrameSize[0]+t3.x]);
-							}
+						}
 						depth/=7.0f;
 						
 						maxProb=prob;
 						
 						if(imgPtr!=0)
-							{
+						{
 							/* Dibuja la mano: */
 							drawLine(*blobImage,tp0,rp0,Images::RGBImage::Color(255,255,255));
 							drawLine(*blobImage,tp1,rp1,Images::RGBImage::Color(255,255,255));
 							drawLine(*blobImage,tp2,rp2,Images::RGBImage::Color(255,255,255));
 							drawLine(*blobImage,tp3,rp3,Images::RGBImage::Color(255,255,255));
 							drawCircle(*blobImage,center,radius,Images::RGBImage::Color(255,255,255));
-							}
 						}
 					}
 				}
 			}
+		}
 		
 		/* Comprueba si la gota coincide con una mano: */
 		if(maxProb>minHandProbability)
-			{
+		{
 			// DEBUGGING
 			// std::cout<<"Hand in depth space: "<<center[0]<<", "<<center[1]<<", "<<depth<<", "<<radius<<std::endl;
 			
@@ -894,15 +901,15 @@ void HandExtractor::extractHands(const HandExtractor::DepthPixel* depthFrame,Han
 			
 			// DEBUGGING
 			// std::cout<<"Hand in camera space: "<<newHand.center[0]<<", "<<newHand.center[1]<<", "<<newHand.center[2]<<", "<<newHand.radius<<std::endl;
-			}
+		}
 		
 		/* Limpiar: */
 		corners.clear();
-		}
+	}
 	
 	/* Limpiar: */
 	delete[] blobOrigins;
-	}
+}
 
 void HandExtractor::setHandsExtractedFunction(HandExtractor::HandsExtractedFunction* newHandsExtractedFunction)
 	{

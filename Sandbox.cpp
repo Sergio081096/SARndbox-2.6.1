@@ -159,7 +159,7 @@ Sandbox::DataItem::~DataItem(void)
 Methods of class Sandbox::RenderSettings:
 ****************************************/
 
-Sandbox::RenderSettings::RenderSettings(bool line)
+Sandbox::RenderSettings::RenderSettings(void)
 	:fixProjectorView(false),
 	 projectorTransform(PTransform::identity),
 	 projectorTransformValid(false),
@@ -167,8 +167,8 @@ Sandbox::RenderSettings::RenderSettings(bool line)
 	 surfaceMaterial(GLMaterial::Color(1.0f,1.0f,1.0f)),
 	 useShadows(false),
 	 elevationColorMap(0),
-	 useContourLines(line), // Activar/Desactivar curvas de nivel
-	 contourLineSpacing(0.75f),
+	 useContourLines(true), // Activar/Desactivar curvas de nivel
+	 contourLineSpacing(1.0f),
 	 renderWaterSurface(false),
 	 waterOpacity(2.0f),
 	 surfaceRenderer(0),
@@ -309,7 +309,7 @@ void Sandbox::addWater(GLContextData& contextData) const
 	{
 	/* Compruebe si la lista de objetos de lluvia más reciente no está vacía: */
 	std::cout<<"addWater"<<std::endl;
-	if(handExtractor!=0 && !handExtractor->getLockedExtractedHands().empty())
+	if((handExtractor != 0) && !handExtractor->getLockedExtractedHands().empty())
 		{
 		/* Renderiza todos los objetos de lluvia al nivel de la mesa: */
 		glPushAttrib(GL_ENABLE_BIT);
@@ -350,7 +350,9 @@ void Sandbox::pauseLineCallback(GLMotif::ToggleButton::ValueChangedCallbackData*
 	{
 		//std::cout<<"pause"<<std::endl;
 		//renderSettings.back().useContourLines=false;
-		pauseLine=cbData->set;
+		pauseLine = cbData->set;
+		for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
+			rsIt->surfaceRenderer->setDrawContourLines(!pauseLine);
 	}
 
 void Sandbox::showWaterControlDialogCallback(Misc::CallbackData* cbData)
@@ -386,7 +388,7 @@ GLMotif::PopupMenu* Sandbox::createMainMenu(void)
 	GLMotif::Menu* mainMenu=new GLMotif::Menu("MainMenu",mainMenuPopup,false);
 	
 	/* Crea un botón para pausar las actualizaciones de topografía: */
-	pauseUpdatesLine=new GLMotif::ToggleButton("PauseUpdatesLine",mainMenu,"Pause Line");
+	pauseUpdatesLine=new GLMotif::ToggleButton("PauseUpdatesLine",mainMenu,"Pause Curves");
 	pauseUpdatesLine->setToggle(false);
 	pauseUpdatesLine->getValueChangedCallbacks().add(this,&Sandbox::pauseLineCallback);
 
@@ -610,36 +612,37 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 	{
 	/* Lea los parámetros de configuración predeterminados del sandbox: */
 	std::cout<<"Main " << std::endl;
-	std::string sandboxConfigFileName=CONFIG_CONFIGDIR;
+	std::string sandboxConfigFileName = CONFIG_CONFIGDIR;
 	sandboxConfigFileName.push_back('/');
 	sandboxConfigFileName.append(CONFIG_DEFAULTCONFIGFILENAME);
-	std::cout<<"Obtener la ruta de SARndbox.cfg-> "<<sandboxConfigFileName<<std::endl;
+	std::cout<<"Obtener la ruta de SARndbox.cfg-> "<< sandboxConfigFileName << std::endl;
 	Misc::ConfigurationFile sandboxConfigFile(sandboxConfigFileName.c_str());
-	Misc::ConfigurationFileSection cfg=sandboxConfigFile.getSection("/SARndbox");
-	unsigned int cameraIndex=cfg.retrieveValue<int>("./cameraIndex",0);
-	std::string cameraConfiguration=cfg.retrieveString("./cameraConfiguration","Camera");
-	double scale=cfg.retrieveValue<double>("./scaleFactor",100.0);
+	Misc::ConfigurationFileSection cfg = sandboxConfigFile.getSection("/SARndbox");
+	unsigned int cameraIndex = cfg.retrieveValue<int>("./cameraIndex",0);
+	std::string cameraConfiguration = cfg.retrieveString("./cameraConfiguration","Camera");
+	double scale = cfg.retrieveValue<double>("./scaleFactor",100.0);
 	std::string sandboxLayoutFileName=CONFIG_CONFIGDIR;
 	sandboxLayoutFileName.push_back('/');
 	sandboxLayoutFileName.append(CONFIG_DEFAULTBOXLAYOUTFILENAME);
 	std::cout<<"Obtener la ruta de BoxLayout.txt-> "<<sandboxLayoutFileName<<std::endl;
-	sandboxLayoutFileName=cfg.retrieveString("./sandboxLayoutFileName",sandboxLayoutFileName);
-	Math::Interval<double> elevationRange=cfg.retrieveValue<Math::Interval<double> >("./elevationRange",Math::Interval<double>(-1000.0,1000.0));
-	bool haveHeightMapPlane=cfg.hasTag("./heightMapPlane");
+	sandboxLayoutFileName = cfg.retrieveString("./sandboxLayoutFileName1",sandboxLayoutFileName);
+	Math::Interval<double> elevationRange = cfg.retrieveValue<Math::Interval<double> >("./elevationRange",Math::Interval<double>(-1000.0,1000.0));	
+	bool haveHeightMapPlane = cfg.hasTag("./heightMapPlane");	
 	Plane heightMapPlane;
 	if(haveHeightMapPlane)
 	{
 		heightMapPlane=cfg.retrieveValue<Plane>("./heightMapPlane");//No entra
 	}
-	unsigned int numAveragingSlots=cfg.retrieveValue<unsigned int>("./numAveragingSlots",30);
-	unsigned int minNumSamples=cfg.retrieveValue<unsigned int>("./minNumSamples",10);
-	unsigned int maxVariance=cfg.retrieveValue<unsigned int>("./maxVariance",2);
-	float hysteresis=cfg.retrieveValue<float>("./hysteresis",0.1f);
+	unsigned int numAveragingSlots = cfg.retrieveValue<unsigned int>("./numAveragingSlots",30);
+	unsigned int minNumSamples = cfg.retrieveValue<unsigned int>("./minNumSamples",10);
+	unsigned int maxVariance = cfg.retrieveValue<unsigned int>("./maxVariance",2);
+	float hysteresis = cfg.retrieveValue<float>("./hysteresis",0.1f);
 	Misc::FixedArray<unsigned int,2> wtSize;
 	wtSize[0]=640;
 	wtSize[1]=480;
 	wtSize=cfg.retrieveValue<Misc::FixedArray<unsigned int,2> >("./waterTableSize",wtSize);
 	waterSpeed=cfg.retrieveValue<double>("./waterSpeed",1.0);
+	lavaSpeed=cfg.retrieveValue<double>("./lavaSpeed",0.45);
 	waterMaxSteps=cfg.retrieveValue<unsigned int>("./waterMaxSteps",30U);
 	Math::Interval<double> rainElevationRange=cfg.retrieveValue<Math::Interval<double> >("./rainElevationRange",Math::Interval<double>(-1000.0,1000.0));
 	rainStrength=cfg.retrieveValue<GLfloat>("./rainStrength",0.25f);
@@ -652,9 +655,7 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 	const char* frameFilePrefix=0;
 	const char* kinectServerName=0;
 	int windowIndex=0;
-	bool line = true;//Curvas de nivel
-	//std::cin >> line;
-	renderSettings.push_back(RenderSettings(line));
+	renderSettings.push_back(RenderSettings());
 	for(int i=1;i<argc;++i)
 		{
 		if(argv[i][0]=='-')
@@ -851,16 +852,16 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 
 	std::cout<<"7: Inicio " << std::endl;	
 	if(frameFilePrefix!=0)
-		{
+	{
 		/* Abra los archivos de video 3D pregrabados seleccionados: */
 		std::string colorFileName=frameFilePrefix;
 		colorFileName.append(".color");
 		std::string depthFileName=frameFilePrefix;
 		depthFileName.append(".depth");
 		camera=new Kinect::FileFrameSource(Vrui::openFile(colorFileName.c_str()),Vrui::openFile(depthFileName.c_str()));
-		}
+	}
 	else if(kinectServerName!=0)
-		{
+	{
 		/* Dividir el nombre del servidor en nombre de host y puerto: */
 		const char* colonPtr=0;
 		for(const char* snPtr=kinectServerName;*snPtr!='\0';++snPtr)
@@ -869,32 +870,33 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 		std::string hostName;
 		int port;
 		if(colonPtr!=0)
-			{
+		{
 			/* Extraer el nombre de host y el puerto: */
 			hostName=std::string(kinectServerName,colonPtr);
 			port=atoi(colonPtr+1);
-			}
+		}
 		else
-			{
+		{
 			/* Utilice el nombre de host completo y el puerto predeterminado: */
 			hostName=kinectServerName;
 			port=26000;
-			}
+		}
 		
 		/* Abra una fuente de trama multiplexada para el nombre de host y número de puerto del servidor dado: */
 		Kinect::MultiplexedFrameSource* source=Kinect::MultiplexedFrameSource::create(Cluster::openTCPPipe(Vrui::getClusterMultiplexer(),hostName.c_str(),port));
 		
 		/* Utilice la primera secuencia de componentes del servidor como dispositivo de cámara: */
 		camera=source->getStream(0);
-		}
+	}
 	else///Continua
-		{		
+	{		
 		/* Abra el dispositivo de cámara 3D del índice seleccionado: */
-		Kinect::DirectFrameSource* realCamera=Kinect::openDirectFrameSource(cameraIndex);//kinect
-		Misc::ConfigurationFileSection cameraConfigurationSection=cfg.getSection(cameraConfiguration.c_str());
-		realCamera->configure(cameraConfigurationSection);
+		Kinect::DirectFrameSource* realCamera=Kinect::openDirectFrameSource(cameraIndex);//kinect-> "0"
+		Misc::ConfigurationFileSection cameraConfigurationSection = cfg.getSection(cameraConfiguration.c_str());// -> "Camera"
+		realCamera->configure(cameraConfigurationSection);	
+		std::cout<<"Teoria-> " << camera << std::endl;
 		camera=realCamera;// 0x21cb030
-		}	
+	}	
 	for(int i=0;i<2;++i)
 	{
 		frameSize[i]=camera->getActualFrameSize(Kinect::FrameSource::DEPTH)[i];//camera of size 640 x 480
@@ -959,7 +961,7 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 	double sf=scale/100.0; // Factor de escala desde cm hasta unidades finales.
 	for(int i=0;i<3;++i)
 		for(int j=0;j<4;++j)
-			cameraIps.depthProjection.getMatrix()(i,j)*=sf;
+			cameraIps.depthProjection.getMatrix()(i,j) *= sf;
 	basePlane = Geometry::Plane<double,3>(basePlane.getNormal(),basePlane.getOffset()*sf);
 	
 	for(int i=0;i<4;++i)
@@ -1002,11 +1004,11 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 	frameFilter->setOutputFrameFunction(Misc::createFunctionCall(this,&Sandbox::receiveFilteredFrame));
 	
 	if(waterSpeed>0.0)
-		{
+	{
 		std::cout<<"10: Velocidad del agua-> "<< waterSpeed << std::endl;	
 		/* Crear el objeto extractor de mano: */
-		handExtractor=new HandExtractor(frameSize,pixelDepthCorrection,cameraIps.depthProjection);
-		}
+		handExtractor = new HandExtractor(frameSize, pixelDepthCorrection, cameraIps.depthProjection);//640x480
+	}
 	
 	/* Iniciar la transmisión de cuadros de profundidad: */
 	camera->startStreaming(0,Misc::createFunctionCall(this,&Sandbox::rawDepthFrameDispatcher));/// Inicializar pero no lanzar
@@ -1226,7 +1228,7 @@ void Sandbox::frame(void)
 		}
 	
 	if(handExtractor!=0)
-		{
+	{
 		/* Bloquea la lista de manos extraída más reciente: */
 		handExtractor->lockNewExtractedHands();
 		
@@ -1244,8 +1246,8 @@ void Sandbox::frame(void)
 			}
 		
 		#endif
-		}
-	std::cout<<"Algo"<<std::endl;
+	}
+	std::cout<<"Algoaqyu"<<std::endl;
 	
 	/* Actualizar todos los renderizadores de superficie: */
 	for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
@@ -1406,6 +1408,44 @@ void Sandbox::frame(void)
 					else
 						std::cerr<<"Wrong number of arguments for dippingBedThickness control pipe command"<<std::endl;
 					}
+				else if(isToken(tokens[0],"useContourLines"))
+			  	{
+			  		if(tokens.size()==2)
+			    	{
+			    		/* Parse the command parameter: */
+			    		bool useContourLines=isToken(tokens[1],"on");
+			    		if(useContourLines||isToken(tokens[1],"off"))
+			      		{
+			      			/* Enable or disable contour lines on all surface renderers: */
+			      			for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
+			        			rsIt->surfaceRenderer->setDrawContourLines(useContourLines);
+			      		}
+			    		else
+			      			std::cerr<<"Invalid parameter "<<tokens[1]<<" for useContourLines control pipe command"<<std::endl;
+			    	}
+			  		else
+			    		std::cerr<<"Wrong number of arguments for useContourLines control pipe command"<<std::endl;
+			  	}
+				else if(isToken(tokens[0],"contourLineSpacing"))
+			  	{
+			  		if(tokens.size()==2)
+			    	{
+				    	/* Parse the contour line distance: */
+				    	GLfloat contourLineSpacing=GLfloat(atof(tokens[1].c_str()));
+				    
+				    	/* Check if the requested spacing is valid: */
+				    	if(contourLineSpacing > 0.0f)
+				      	{
+				      		/* Override the contour line spacing of all surface renderers: */
+				      		for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
+				        		rsIt->surfaceRenderer->setContourLineDistance(contourLineSpacing);
+				      	}
+				    	else
+				      		std::cerr<<"Invalid parameter "<<contourLineSpacing<<" for contourLineSpacing control pipe command"<<std::endl;
+			    	}	
+			  		else
+			    		std::cerr<<"Wrong number of arguments for contourLineSpacing control pipe command"<<std::endl;
+			  	}	
 				else
 					std::cerr<<"Unrecognized control pipe command "<<tokens[0]<<std::endl;
 				}
@@ -1466,6 +1506,7 @@ void Sandbox::keyboard ( unsigned char key, int x, int y )  // Create Keyboard F
 
 void Sandbox::display(GLContextData& contextData) const
 	{	
+	std::cout << "Inicio de algo" << std::endl;
 	/* Obtener el elemento de datos: */
 	DataItem* dataItem=contextData.retrieveDataItem<DataItem>(this);
 	

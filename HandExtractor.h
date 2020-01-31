@@ -54,6 +54,7 @@ class HandExtractor
 		public:
 		Point center; // Centro de la mano en profundidad espacio de imagen
 		double radius; // Radio aproximado de la mano en profundidad espacio de imagen
+		int direction;
 		};
 	
 	typedef std::vector<Hand> HandList; // Escriba para listas de posiciones de manos
