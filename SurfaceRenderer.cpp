@@ -394,34 +394,65 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(const GLLightTracker&
 				illuminate(baseColor);\n\
 				\n";
 			}
-		
-		if(waterTable!=0&&dem==0)
+		if(!lava)
+		{
+			if((waterTable != 0) && (dem == 0))
 			{
-			/* Declarar las funciones de manejo de agua: */
-			fragmentDeclarations+="\
-				void addWaterColor(in vec2,inout vec4);\n\
-				void addWaterColorAdvected(inout vec4);\n";
-			
-			/* Compile the water handling shader: */
-			shaders.push_back(compileFragmentShader("SurfaceAddWaterColor"));
-			
-			/* Compilar el shader de manejo de agua: */
-			if(advectWaterTexture)
+				/* Declarar las funciones de manejo de agua: */
+				fragmentDeclarations+="\
+					void addWaterColor(in vec2,inout vec4);\n\
+					void addWaterColorAdvected(inout vec4);\n";
+				
+				/* Compile the water handling shader: */
+				shaders.push_back(compileFragmentShader("SurfaceAddWaterColor"));
+				
+				/* Compilar el shader de manejo de agua: */
+				if(advectWaterTexture)
 				{
-				fragmentMain+="\
-					/* Modulate the base color with water color: */\n\
-					addWaterColorAdvected(baseColor);\n\
-					\n";
+					fragmentMain+="\
+						/* Modulate the base color with water color: */\n\
+						addWaterColorAdvected(baseColor);\n\
+						\n";
 				}
-			else
+				else
 				{
-				fragmentMain+="\
-					/* Modulate the base color with water color: */\n\
-					addWaterColor(gl_FragCoord.xy,baseColor);\n\
-					\n";
+					fragmentMain+="\
+						/* Modulate the base color with water color: */\n\
+						addWaterColor(gl_FragCoord.xy,baseColor);\n\
+						\n";
 				}
 			}
-		
+		}
+		else
+		{
+			if((waterTable != 0) && (dem == 0))
+			{
+				/* Declarar las funciones de manejo de agua: */
+				fragmentDeclarations+="\
+					void addWaterColor(in vec2,inout vec4);\n\
+					void addWaterColorAdvected(inout vec4);\n";
+				
+				/* Compile the water handling shader: */
+				shaders.push_back(compileFragmentShader("SurfaceAddWaterColor-Lava"));
+				
+				/* Compilar el shader de manejo de agua: */
+				if(advectWaterTexture)
+				{
+					fragmentMain+="\
+						/* Modulate the base color with water color: */\n\
+						addWaterColorAdvected(baseColor);\n\
+						\n";
+				}
+				else
+				{
+					fragmentMain+="\
+						/* Modulate the base color with water color: */\n\
+						addWaterColor(gl_FragCoord.xy,baseColor);\n\
+						\n";
+				}
+			}
+		}
+
 		/* Termina la función principal del sombreador de fragmentos: */
 		fragmentMain+="\
 			/* Assign the final color to the fragment: */\n\
@@ -594,13 +625,14 @@ SurfaceRenderer::SurfaceRenderer(const DepthImageRenderer* sDepthImageRenderer)
 	 dippingBedPlane(Plane::Vector(0,0,1),0.0f),
 	 dippingBedThickness(1),
 	 dem(0),
-	 demDistScale(1.0f),
+	 demDistScale(2.0f),
 	 illuminate(false),
 	 waterTable(0),
 	 advectWaterTexture(false),
 	 waterOpacity(2.0f),
 	 surfaceSettingsVersion(1),
-	 animationTime(0.0)
+	 animationTime(0.0),
+	 lava(true)
 	{
 	std::cout<<"16: SurfaceRenderer" << std::endl;
 	/* Copia el tamaño de la imagen de profundidad: */
@@ -624,6 +656,7 @@ SurfaceRenderer::SurfaceRenderer(const DepthImageRenderer* sDepthImageRenderer)
 	fileMonitor.addPath((std::string(CONFIG_SHADERDIR)+std::string("/SurfaceAddContourLines.fs")).c_str(),IO::FileMonitor::Modified,Misc::createFunctionCall(this,&SurfaceRenderer::shaderSourceFileChanged));
 	fileMonitor.addPath((std::string(CONFIG_SHADERDIR)+std::string("/SurfaceIlluminate.fs")).c_str(),IO::FileMonitor::Modified,Misc::createFunctionCall(this,&SurfaceRenderer::shaderSourceFileChanged));
 	fileMonitor.addPath((std::string(CONFIG_SHADERDIR)+std::string("/SurfaceAddWaterColor.fs")).c_str(),IO::FileMonitor::Modified,Misc::createFunctionCall(this,&SurfaceRenderer::shaderSourceFileChanged));
+	fileMonitor.addPath((std::string(CONFIG_SHADERDIR)+std::string("/SurfaceAddWaterColor-Lava.fs")).c_str(),IO::FileMonitor::Modified,Misc::createFunctionCall(this,&SurfaceRenderer::shaderSourceFileChanged));
 	fileMonitor.startPolling();
 	}
 
@@ -729,7 +762,7 @@ void SurfaceRenderer::setDippingBedCoeffs(const GLfloat newDippingBedCoeffs[5])
 void SurfaceRenderer::setDippingBedThickness(GLfloat newDippingBedThickness)
 	{		
 	dippingBedThickness=newDippingBedThickness;
-	std::cout<<"Grozor?->"<<dippingBedThickness<<std::endl;
+	//std::cout<<"Grozor?->"<<dippingBedThickness<<std::endl;
 	}
 
 void SurfaceRenderer::setDem(DEM* newDem)
@@ -739,26 +772,32 @@ void SurfaceRenderer::setDem(DEM* newDem)
 		++surfaceSettingsVersion;
 	
 	/* Establecer el nuevo DEM: */
-	dem=newDem;
+	dem = newDem;
 	}
 
 void SurfaceRenderer::setDemDistScale(GLfloat newDemDistScale)
 	{
-	std::cout<<"16.9: SetDemDistScale" << std::endl;
+	//std::cout<<"16.9: SetDemDistScale" << std::endl;
 	demDistScale=newDemDistScale;
 	}
 
 void SurfaceRenderer::setIlluminate(bool newIlluminate)
 	{
 	std::cout<<"16.4: SetIlluminate" << std::endl;
-
 	illuminate=newIlluminate;
+	++surfaceSettingsVersion;
+	}
+
+void SurfaceRenderer::setLava(bool newLava)
+	{
+	//std::cout<<"Numero: SetLava" << std::endl;
+	lava=newLava;
 	++surfaceSettingsVersion;
 	}
 
 void SurfaceRenderer::setWaterTable(WaterTable2* newWaterTable)
 	{
-	std::cout<<"16.6: SetWaterTable" << std::endl;
+	//std::cout<<"16.6: SetWaterTable" << std::endl;
 	waterTable=newWaterTable;
 	++surfaceSettingsVersion;
 	}

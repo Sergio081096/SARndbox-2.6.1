@@ -154,6 +154,10 @@ SARNDBOX_SOURCES = FrameFilter.cpp \
                    WaterTable2.cpp \
                    WaterRenderer.cpp \
                    HandExtractor.cpp \
+		   HeightColorMapTool.cpp \
+		   ContourLineTool.cpp \
+		   WaterLevelTool.cpp \
+		   WaterDisableTool.cpp \
                    GlobalWaterTool.cpp \
                    LocalWaterTool.cpp \
                    DEM.cpp \

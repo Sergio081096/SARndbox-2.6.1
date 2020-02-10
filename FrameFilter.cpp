@@ -35,7 +35,7 @@ Methods of class FrameFilter:
 void* FrameFilter::filterThreadMethod(void)
 	{
 	unsigned int lastInputFrameVersion=0;
-	std::cout<<"filterThreadMethod" << std::endl;
+	//std::cout<<"filterThreadMethod" << std::endl;
 	while(true)
 	{
 		Kinect::FrameBuffer frame;

@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "WaterTable2.h"
 #include "Sandbox.h"
+#include <iostream>
 
 /***************************************
 Static elements of class LocalWaterTool:
@@ -46,8 +47,9 @@ Methods of class LocalWaterTool:
 
 LocalWaterToolFactory* LocalWaterTool::initClass(Vrui::ToolManager& toolManager)
 	{
+	
 	/* Crea la fábrica de herramientas: */
-	factory=new LocalWaterToolFactory("LocalWaterTool","Manage Water Locally",0,toolManager);
+	factory = new LocalWaterToolFactory("LocalWaterTool","Manage Water Locally", 0, toolManager);
 	
 	/* Configure el diseño de entrada de la clase de herramienta: */
 	factory->setNumButtons(2);
@@ -55,7 +57,7 @@ LocalWaterToolFactory* LocalWaterTool::initClass(Vrui::ToolManager& toolManager)
 	factory->setButtonFunction(1,"Dry");
 	
 	/* Registro y retorno de clase */
-	toolManager.addClass(factory,Vrui::ToolManager::defaultToolFactoryDestructor);
+	toolManager.addClass(factory, Vrui::ToolManager::defaultToolFactoryDestructor);
 	return factory;
 	}
 
@@ -95,14 +97,22 @@ const Vrui::ToolFactory* LocalWaterTool::getFactory(void) const
 	}
 
 void LocalWaterTool::buttonCallback(int buttonSlotIndex,Vrui::InputDevice::ButtonCallbackData* cbData)
-	{
-	GLfloat waterAmount=application->rainStrength;
+{
+	GLfloat waterAmount = application->rainStrength;
 	if(!cbData->newButtonState)
-		waterAmount=-waterAmount;
-	if(buttonSlotIndex==1)
-		waterAmount=-waterAmount;
-	adding+=waterAmount;
+	{
+		waterAmount =- waterAmount;
+		//std::cout<<"Boton 3->"<< buttonSlotIndex<<std::endl;	
+		if(buttonSlotIndex != 1)
+			application->lavaCallback(true);
 	}
+	if(buttonSlotIndex==1)
+	{
+		waterAmount =- waterAmount;
+		//std::cout<<"Boton 4->"<< buttonSlotIndex <<std::endl;
+	}
+	adding+=waterAmount;
+}
 
 void LocalWaterTool::initContext(GLContextData& contextData) const
 	{
@@ -130,7 +140,7 @@ void LocalWaterTool::glRenderActionTransparent(GLContextData& contextData) const
 	y.normalize();
 	
 	/* Establecer el material de los cilindros de lluvia: */
-	GLfloat diffuseCol[4]={0.0f,0.0f,1.0f,0.333f};
+	GLfloat diffuseCol[4]={0.0f,1.0f,0.0f,0.333f};
 	glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,diffuseCol);
 	
 	/* Renderice las caras posteriores del cilindro de lluvia: */
@@ -187,7 +197,7 @@ void LocalWaterTool::addWater(GLContextData& contextData) const
 		x*=rainRadius/Geometry::mag(x);
 		y*=rainRadius/Geometry::mag(y);
 		
-		glVertexAttrib1fARB(1,adding/application->waterSpeed);
+		glVertexAttrib1fARB(1,adding/application->lavaSpeed*5.0);
 		glBegin(GL_POLYGON);
 		for(int i=0;i<32;++i)
 			{

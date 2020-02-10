@@ -306,7 +306,7 @@ GLfloat WaterTable2::calcDerivative(WaterTable2::DataItem* dataItem,GLuint quant
 	return stepSize;
 	}
 
-WaterTable2::WaterTable2(GLsizei width,GLsizei height,const GLfloat sCellSize[2])
+WaterTable2::WaterTable2(GLsizei width, GLsizei height, const GLfloat sCellSize[2])
 	:depthImageRenderer(0),
 	 baseTransform(ONTransform::identity),
 	 dryBoundary(true),
@@ -342,10 +342,12 @@ WaterTable2::WaterTable2(GLsizei width,GLsizei height,const GLfloat sCellSize[2]
 	waterDeposit=0.0f;
 	}
 
-WaterTable2::WaterTable2(GLsizei width,GLsizei height,const DepthImageRenderer* sDepthImageRenderer,const Point basePlaneCorners[4])
+WaterTable2::WaterTable2(GLsizei width, GLsizei height, const DepthImageRenderer* sDepthImageRenderer, const Point basePlaneCorners[4])
 	:depthImageRenderer(sDepthImageRenderer),
 	 dryBoundary(true),
-	 readBathymetryRequest(0U),readBathymetryBuffer(0),readBathymetryReply(0U)
+	 readBathymetryRequest(0U),
+	 readBathymetryBuffer(0),
+	 readBathymetryReply(0U)
 	{
 	std::cout<<"13: WaterTable2 " << std::endl;
 	/* Inicializar el tamaño de la tabla de agua: */
@@ -353,7 +355,7 @@ WaterTable2::WaterTable2(GLsizei width,GLsizei height,const DepthImageRenderer* 
 	size[1]=height;
 	
 	/* Proyecte los puntos de esquina al plano base y calcule su centroide: */
-	const Plane& basePlane=depthImageRenderer->getBasePlane();
+	const Plane& basePlane = depthImageRenderer->getBasePlane();
 	Point bpc[4];
 	Point::AffineCombiner centroidC;
 	for(int i=0;i<4;++i)
@@ -690,7 +692,7 @@ void WaterTable2::setAttenuation(GLfloat newAttenuation)
 
 void WaterTable2::setMaxStepSize(GLfloat newMaxStepSize)
 	{
-	maxStepSize=newMaxStepSize;
+	maxStepSize = newMaxStepSize;
 	}
 
 void WaterTable2::addRenderFunction(const AddWaterFunction* newRenderFunction)
@@ -715,7 +717,7 @@ void WaterTable2::removeRenderFunction(const AddWaterFunction* removeRenderFunct
 void WaterTable2::setWaterDeposit(GLfloat newWaterDeposit)
 	{
 	std::cout<<"13.2: SetWaterDeposit " << std::endl;
-	waterDeposit=newWaterDeposit;
+	waterDeposit = newWaterDeposit;
 	}
 
 void WaterTable2::setDryBoundary(bool newDryBoundary)

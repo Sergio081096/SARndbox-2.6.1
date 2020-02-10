@@ -35,7 +35,7 @@ class DepthImageRenderer;
 class ElevationColorMap:public GLColorMap,public GLTextureObject
 	{
 	/* Elementos: */
-	private:
+	public:
 	GLfloat texturePlaneEq[4]; // Ecuación del plano de mapeado de texturas en formato compatible con GLSL
 	
 	/* Constructores y destructores: */

@@ -92,6 +92,7 @@ class SurfaceRenderer:public GLObject
 	
 	bool illuminate; // Marque si la superficie debe estar iluminada
 	
+	bool lava;
 	WaterTable2* waterTable; // Puntero al objeto de la capa freática; si es NULL, se ignora el agua
 	bool advectWaterTexture; // Marque si las coordenadas de textura del agua se advectan para visualizar el flujo de agua
 	GLfloat waterOpacity; // Factor de escala para la opacidad del agua.
@@ -122,6 +123,7 @@ class SurfaceRenderer:public GLObject
 	void setDem(DEM* newDem); // Establece un modelo de elevación digital prefabricado para crear una superficie cero para la asignación de color de altura
 	void setDemDistScale(GLfloat newDemDistScale); // Establece la desviación de DEM a superficie para saturar el mapa de color de desviación
 	void setIlluminate(bool newIlluminate); // Establece la bandera de iluminación.
+	void setLava(bool newLava); // Establece la bandera de lava.
 	void setWaterTable(WaterTable2* newWaterTable); // Establece el puntero a la capa freática; NULL deshabilita el manejo del agua
 	void setAdvectWaterTexture(bool newAdvectWaterTexture); // Establece la bandera de advección de coordenadas de textura de agua
 	void setWaterOpacity(GLfloat newWaterOpacity); // Establece el factor de opacidad del agua.

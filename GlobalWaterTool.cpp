@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "WaterTable2.h"
 #include "Sandbox.h"
+#include <iostream>
 
 /****************************************
 Static elements of class GlobalWaterTool:
@@ -67,27 +68,34 @@ const Vrui::ToolFactory* GlobalWaterTool::getFactory(void) const
 	}
 
 void GlobalWaterTool::buttonCallback(int buttonSlotIndex,Vrui::InputDevice::ButtonCallbackData* cbData)
-	{
+{
 	/* Calcule la cantidad de agua para agregar o eliminar: */
 	float waterAmount;
 	if(cbData->newButtonState) // El botón se acaba de presionar
-		{
+	{
 		/* Agregar una cantidad fija de agua/segundo: */
 		waterAmount=application->waterSpeed>0.0?application->rainStrength/application->waterSpeed:0.0f;
 		
 		/* Invertir la cantidad de agua para el botón de drenaje: */
 		if(buttonSlotIndex==1)
+		{
 			waterAmount=-waterAmount;
+		}
+		if(buttonSlotIndex != 1)
+			application->waterCallback(false);
 		
+	
+		//std::cout<<"Boton 1->"<< buttonSlotIndex<<std::endl;	
 		/* Recuerde la cantidad para el evento de lanzamiento de botón: */
 		waterAmounts[buttonSlotIndex]=waterAmount;
-		}
+	}
 	else // Botón acaba de ser lanzado
-		{
+	{
 		/* Invertir la cantidad de agua agregada cuando se presionó el botón: */
+		//std::cout<<"Boton 2->"<< buttonSlotIndex<<std::endl;	
 		waterAmount=-waterAmounts[buttonSlotIndex];
-		}
+	}
 	
 	/* Agregue la cantidad de agua a la mesa de agua: */
 	application->waterTable->setWaterDeposit(application->waterTable->getWaterDeposit()+waterAmount);
-	}
+}

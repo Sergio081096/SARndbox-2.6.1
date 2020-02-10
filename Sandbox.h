@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include <Geometry/OrthonormalTransformation.h>
 #include <Geometry/ProjectiveTransformation.h>
 #include <GL/gl.h>
-#include "GL/glut.h"			// Archivo de cabecera para la libreria Glut
 #include <GL/GLColorMap.h>
 #include <GL/GLMaterial.h>
 #include <GL/GLObject.h>
@@ -70,6 +69,10 @@ class WaterTable2;
 class HandExtractor;
 typedef Misc::FunctionCall<GLContextData&> AddWaterFunction;
 class WaterRenderer;
+class HeightColorMapTool;
+class ContourLineTool;
+class WaterLevelTool;
+class WaterDisableTool;
 
 class Sandbox:public Vrui::Application,public GLObject
 	{
@@ -101,6 +104,7 @@ class Sandbox:public Vrui::Application,public GLObject
 		PTransform projectorTransform; // La matriz de transformación del proyector calibrada para renderizado de proyección fija
 		bool projectorTransformValid; // Marque si la transformación del proyector es válida
 		bool hillshade; // Marque si se debe usar sombreado de colina de realidad aumentada
+		bool useLava; //Marque para usar lava
 		GLMaterial surfaceMaterial; // Propiedades del material para renderizar la superficie en modo sombreado
 		bool useShadows; // Marque si se deben usar sombras en el sombreado de colina de realidad aumentada
 		ElevationColorMap* elevationColorMap; // Puntero a un mapa de color de elevación
@@ -124,6 +128,10 @@ class Sandbox:public Vrui::Application,public GLObject
 	friend class GlobalWaterTool;
 	friend class LocalWaterTool;
 	friend class DEMTool;
+	friend class HeightColorMapTool;
+	friend class ContourLineTool;
+	friend class WaterLevelTool;
+	friend class WaterDisableTool;
 	
 	/* Elementos: */
 	private:
@@ -134,6 +142,7 @@ class Sandbox:public Vrui::Application,public GLObject
 	FrameFilter* frameFilter; // Procesamiento de objetos para filtrar fotogramas de profundidad sin procesar de la cámara Kinect
 	bool pauseUpdates; // Pausa las actualizaciones de la topografía.
 	bool pauseLine;
+	bool speedlava;
 	Threads::TripleBuffer<Kinect::FrameBuffer> filteredFrames; // Triple buffer para marcos de profundidad filtrada entrantes
 	DepthImageRenderer* depthImageRenderer; // Objeto que gestiona la imagen de profundidad filtrada actual
 	ONTransform boxTransform; // Transformación del espacio de la cámara al espacio del plano base (x a lo largo del eje de caja de arena larga, z hacia arriba)
@@ -167,6 +176,8 @@ class Sandbox:public Vrui::Application,public GLObject
 	void addWater(GLContextData& contextData) const; // Función para renderizar geometría que agrega agua a la capa freática
 	void pauseUpdatesCallback(GLMotif::ToggleButton::ValueChangedCallbackData* cbData);
 	void pauseLineCallback(GLMotif::ToggleButton::ValueChangedCallbackData* cbData);
+	void lavaCallback(bool sLava);
+	void waterCallback(bool sWater);
 	void showWaterControlDialogCallback(Misc::CallbackData* cbData);
 	void waterSpeedSliderCallback(GLMotif::TextFieldSlider::ValueChangedCallbackData* cbData);
 	void waterMaxStepsSliderCallback(GLMotif::TextFieldSlider::ValueChangedCallbackData* cbData);
@@ -174,8 +185,6 @@ class Sandbox:public Vrui::Application,public GLObject
 	GLMotif::PopupMenu* createMainMenu(void);
 	GLMotif::PopupWindow* createWaterControlDialog(void);
 
-	void glutKeyboardFunc( unsigned char key, int x, int y );	
-	void keyboard( unsigned char key, int x, int y );
 	void glutPostRedisplay(void);
 	
 	/* Constructores y destructores: */

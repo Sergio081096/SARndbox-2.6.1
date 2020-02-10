@@ -155,7 +155,7 @@ void WaterRenderer::initContext(GLContextData& contextData) const
 
 void WaterRenderer::render(const PTransform& projection,const OGTransform& modelview,GLContextData& contextData) const
 	{
-		std::cout<<"Hola 2"<<std::endl;
+		//std::cout<<"Hola 2"<<std::endl;
 	/* Obtener el elemento de datos: */
 	DataItem* dataItem=contextData.retrieveDataItem<DataItem>(this);
 	

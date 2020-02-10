@@ -40,7 +40,7 @@ class GlobalWaterTool:public Vrui::Tool,public Vrui::Application::Tool<Sandbox>
 	private:
 	static GlobalWaterToolFactory* factory; // Puntero al objeto de fábrica para esta clase
 	float waterAmounts[2]; // Cantidad de agua agregada al procesador de agua global cuando se presiona cualquier botón de herramienta
-	
+	bool addingWater;
 	/* Constructores y destructores: */
 	public:
 	static GlobalWaterToolFactory* initClass(Vrui::ToolManager& toolManager);

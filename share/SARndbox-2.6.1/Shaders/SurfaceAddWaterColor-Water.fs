@@ -1,6 +1,4 @@
 /***********************************************************************
-SurfaceAddWaterColor-Lava.fs
-
 SurfaceAddWaterColor - Shader fragment to modify the base color of a
 surface if the current fragment is under water.
 Copyright (c) 2012-2015 Oliver Kreylos
@@ -157,40 +155,65 @@ fixed texture coordinates:
 
 void addWaterColor(in vec2 fragCoord,inout vec4 baseColor)
 	{
-	/* Calculate the water column height above this fragment: */
+	/* Calculate the water column height above this fragment: 
+*/
 	float b=(texture2DRect(bathymetrySampler,vec2(waterTexCoord.x-1.0,waterTexCoord.y-1.0)).r+
 	         texture2DRect(bathymetrySampler,vec2(waterTexCoord.x,waterTexCoord.y-1.0)).r+
 	         texture2DRect(bathymetrySampler,vec2(waterTexCoord.x-1.0,waterTexCoord.y)).r+
 	         texture2DRect(bathymetrySampler,waterTexCoord.xy).r)*0.25;
 	float waterLevel=texture2DRect(quantitySampler,waterTexCoord).r-b;
-	
+	float vx=((texture2DRect(quantitySampler,waterTexCoord).g))/waterLevel;
+        float vy=((texture2DRect(quantitySampler,waterTexCoord).b))/waterLevel;
 	/* Check if the surface is under water: */
 	if(waterLevel>0.0)
 		{
 		/* Calculate the water color: */
 		// float colorW=max(snoise(vec3(fragCoord*0.05,waterAnimationTime*0.25)),0.0); // Simple noise function
-		float colorW=max(turb(vec3(fragCoord*0.05,waterAnimationTime*0.25)),0.0); // Turbulence noise
+		// float colorW=max(turb(vec3(fragCoord*0.05,waterAnimationTime*0.25)),0.0); // Turbulence noise
+		float energy=sqrt(vx*vx+vy*vy)*waterLevel; //MOMENTUM color criterion
+		float min_energy_sedi=.28; //Wwater color is sedim below this value; starts to change to normal
+		float max_energy_sedi=.3; //Lower value for normal water color
+		float min_energy_eros=2.5; //Upper value for normal color; starts to change to erosion
+		float max_energy_eros=3.0; //Water color is erosion above this value
+
+		/*Set a vector with the 3 color components*/
+		vec3 watcol;
+        	/*Default colors for intermediate (normal) energy range*/
+		watcol.r=0; 
+		watcol.g=0;
+       		watcol.b=1;
+		/*How much color change out of the normal range:*/
+		float bsed=.2, bero=.6; //0 means do not differenciate - 1 means pure color
 		
+		//linear color change for sedimentation 
+		if (energy<max_energy_sedi) {
+			float fac=(energy-min_energy_sedi)/(max_energy_sedi-min_energy_sedi);
+			if (energy<min_energy_sedi) fac=0;
+			watcol.g=bsed*(1-fac);
+			watcol.b=1-bsed*5*(1-fac);
+		}
+		//linear color change for erosion
+		if (energy>min_energy_eros) {
+			float fac=(energy-min_energy_eros)/(max_energy_eros-min_energy_eros);
+			if (energy>max_energy_eros) fac=1;
+			watcol.r=bero*fac;
+			watcol.b=1-bero*5*fac;
+		}
+
 		vec3 wn=normalize(vec3((texture2DRect(quantitySampler,vec2(waterTexCoord.x-1.0,waterTexCoord.y)).r-
 		                        texture2DRect(quantitySampler,vec2(waterTexCoord.x+1.0,waterTexCoord.y)).r)*waterCellSize.y,
 		                       (texture2DRect(quantitySampler,vec2(waterTexCoord.x,waterTexCoord.y-1.0)).r-
 		                        texture2DRect(quantitySampler,vec2(waterTexCoord.x,waterTexCoord.y+1.0)).r)*waterCellSize.x,
 		                       2.0*waterCellSize.x*waterCellSize.y));
-		// float colorW=pow(dot(wn,normalize(vec3(0.075,0.075,1.0))),100.0)*1.0-0.0;
+		float colorW=pow(dot(wn,normalize(vec3(0.075,0.075,1.0))),100.0)*1.0-0.0;
 		
-		// vec4 waterColor=vec4(colorW,colorW,1.0,1.0); // Water
-		vec4 waterColor=vec4(1.0-colorW,1.0-colorW*2.0,0.0,1.0); // Lava
+		 vec4 waterColor=vec4(colorW,colorW,1.0,1.0); // Water
+		// vec4 waterColor=vec4(1.0-colorW,1.0-colorW*2.0,0.0,1.0); // Lava
 		// vec4 waterColor=vec4(0.0,0.0,1.0,1.0); // Blue
-		//vec4 waterColor=vec4(0.2,1.0,0.2,1.0); // Toxic waste
-		//vec4 waterColor=vec4(2.0,2.0,1.0,1.0); // Smooth White or snow
-		//vec4 waterColor=vec4(0.2-colorW,1.0-colorW*0.2,1.0,1.0); // Ice
-		//vec4 waterColor=vec4(1.0-colorW,1.0-colorW*0.2,1.0,1.0); // Sparkly Ice
-		//vec4 waterColor=vec4(1.0-colorW,0.2-colorW*0.2,1.0,1.0); // Polluted Water
-		//vec4 waterColor=vec4(0.2-colorW,1.0-colorW*2.0,0.2,1.0); // Toxic Death
+		// vec4 waterColor=vec4(colorW+watcol.r,colorW+watcol.g,colorW+watcol.b,1.0);
 
-		
 		/* Mix the water color with the base surface color based on the water level: */
-		baseColor=mix(baseColor,waterColor,min(waterLevel*waterOpacity,1.0));
+		baseColor=mix(baseColor,waterColor,min(waterLevel*waterOpacity*5.0,1.0));
 		}
 	}
 
@@ -217,15 +240,8 @@ void addWaterColorAdvected(inout vec4 baseColor)
 		//                                0.0025));
 		//float colorW=1.0-pow(noiseNormal.z,2.0);
 		
-		// vec4 waterColor=vec4(colorW,colorW,1.0,1.0); // Water
+		// vec4 waterColor=vec4(1.0-colorW,1.0-colorW,1.0,1.0); // Water
 		vec4 waterColor=vec4(1.0-colorW,1.0-colorW*2.0,0.0,1.0); // Lava
-		// vec4 waterColor=vec4(0.0,0.0,1.0,1.0); // Blue
-		//vec4 waterColor=vec4(0.2,1.0,0.2,1.0); // Toxic waste
-		//vec4 waterColor=vec4(2.0,2.0,1.0,1.0); // Smooth White or snow
-		//vec4 waterColor=vec4(0.2-colorW,1.0-colorW*0.2,1.0,1.0); // Ice
-		//vec4 waterColor=vec4(1.0-colorW,1.0-colorW*0.2,1.0,1.0); // Sparkly Ice
-		//vec4 waterColor=vec4(1.0-colorW,0.2-colorW*0.2,1.0,1.0); // Polluted Water
-		//vec4 waterColor=vec4(0.2-colorW,1.0-colorW*2.0,0.2,1.0); // Toxic Deat
 		
 		/* Mix the water color with the base surface color based on the water level: */
 		baseColor=mix(baseColor,waterColor,min(waterLevelTex.b*waterOpacity,1.0));

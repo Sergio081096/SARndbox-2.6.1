@@ -110,6 +110,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "LocalWaterTool.h"
 #include "DEMTool.h"
 #include "BathymetrySaverTool.h"
+#include "HeightColorMapTool.h"
+#include "ContourLineTool.h"
+#include "WaterLevelTool.h"
+#include "WaterDisableTool.h"
 
 #include "Config.h"
 
@@ -122,7 +126,7 @@ Sandbox::DataItem::DataItem(void)
 	 shadowFramebufferObject(0),shadowDepthTextureObject(0)
 	{
 	/* Compruebe si todas las extensiones requeridas son compatibles: */
-	std::cout<<"DataItem"<<std::endl;	
+	//std::cout<<"DataItem"<<std::endl;	
 	bool supported=GLEXTFramebufferObject::isSupported();
 	supported=supported&&GLARBTextureRectangle::isSupported();
 	supported=supported&&GLARBTextureFloat::isSupported();
@@ -150,7 +154,7 @@ Sandbox::DataItem::DataItem(void)
 Sandbox::DataItem::~DataItem(void)
 	{
 	/* Eliminar todos los shaders, buffers, and texture objects: */
-	std::cout<<"~DataItem"<<std::endl;
+	//std::cout<<"~DataItem"<<std::endl;
 	glDeleteFramebuffersEXT(1,&shadowFramebufferObject);
 	glDeleteTextures(1,&shadowDepthTextureObject);
 	}
@@ -168,6 +172,7 @@ Sandbox::RenderSettings::RenderSettings(void)
 	 useShadows(false),
 	 elevationColorMap(0),
 	 useContourLines(true), // Activar/Desactivar curvas de nivel
+	 useLava(false),
 	 contourLineSpacing(1.0f),
 	 renderWaterSurface(false),
 	 waterOpacity(2.0f),
@@ -188,6 +193,7 @@ Sandbox::RenderSettings::RenderSettings(const Sandbox::RenderSettings& source) /
 	 useShadows(source.useShadows),
 	 elevationColorMap(source.elevationColorMap!=0?new ElevationColorMap(*source.elevationColorMap):0),
 	 useContourLines(source.useContourLines),
+	 useLava(source.useLava),
 	 contourLineSpacing(source.contourLineSpacing),
 	 renderWaterSurface(source.renderWaterSurface),
 	 waterOpacity(source.waterOpacity),
@@ -195,7 +201,7 @@ Sandbox::RenderSettings::RenderSettings(const Sandbox::RenderSettings& source) /
 	 waterRenderer(0)
 	{
 
-		std::cout<<"3: Cargando Render del Apuntador"<<std::endl;	
+		//std::cout<<"3: Cargando Render del Apuntador"<<std::endl;	
 	}//*/
 
 Sandbox::RenderSettings::~RenderSettings(void)
@@ -251,7 +257,7 @@ void Sandbox::RenderSettings::loadHeightMap(const char* heightMapName)
 		/* Eliminar el mapa de color de elevación anterior y asignar el nuevo: */
 		delete elevationColorMap;
 		elevationColorMap = newElevationColorMap;
-		std::cout<<"5.4: Cargando Mapa-> "<< elevationColorMap <<std::endl;
+		//std::cout<<"5.4: Cargando Mapa-> "<< elevationColorMap <<std::endl;
 	}
 	catch(const std::runtime_error& err)
 		{
@@ -266,7 +272,7 @@ Methods of class Sandbox:
 void Sandbox::rawDepthFrameDispatcher(const Kinect::FrameBuffer& frameBuffer)
 	{
 	/* Pase el cuadro recibido al filtro de cuadro y al extractor manual: */
-	std::cout<<"123: rawDepthFrameDispatcher" <<std::endl;
+	//std::cout<<"123: rawDepthFrameDispatcher" <<std::endl;
 	if(frameFilter!=0 && !pauseUpdates)
 		frameFilter->receiveRawFrame(frameBuffer);
 	if(handExtractor!=0)
@@ -276,7 +282,7 @@ void Sandbox::rawDepthFrameDispatcher(const Kinect::FrameBuffer& frameBuffer)
 void Sandbox::receiveFilteredFrame(const Kinect::FrameBuffer& frameBuffer)
 	{
 	/* Coloque el nuevo marco en el búfer de entrada de marco: */
-	std::cout<<"receiveFilteredFrame"<<std::endl;
+	//std::cout<<"receiveFilteredFrame"<<std::endl;
 	filteredFrames.postNewValue(frameBuffer);
 	
 	/* Despierta el hilo de primer plano: */
@@ -286,7 +292,7 @@ void Sandbox::receiveFilteredFrame(const Kinect::FrameBuffer& frameBuffer)
 void Sandbox::toggleDEM(DEM* dem)
 	{
 	/* Compruebe si este es el DEM activo: */
-	std::cout<<"toggleDEM"<<std::endl;
+	//std::cout<<"toggleDEM"<<std::endl;
 	if(activeDem==dem)
 		{
 		/* Desactivar el DEM actualmente activo: */
@@ -308,7 +314,7 @@ void Sandbox::toggleDEM(DEM* dem)
 void Sandbox::addWater(GLContextData& contextData) const
 	{
 	/* Compruebe si la lista de objetos de lluvia más reciente no está vacía: */
-	std::cout<<"addWater"<<std::endl;
+	//std::cout<<"addWater"<<std::endl;
 	if((handExtractor != 0) && !handExtractor->getLockedExtractedHands().empty())
 		{
 		/* Renderiza todos los objetos de lluvia al nivel de la mesa: */
@@ -355,6 +361,21 @@ void Sandbox::pauseLineCallback(GLMotif::ToggleButton::ValueChangedCallbackData*
 			rsIt->surfaceRenderer->setDrawContourLines(!pauseLine);
 	}
 
+void Sandbox::lavaCallback(bool sLava)
+	{
+	waterSpeed = 0.2;
+	for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
+		rsIt->surfaceRenderer->setLava(sLava);
+	}
+
+void Sandbox::waterCallback(bool sWater)
+	{
+	waterSpeed = 0.8;
+	for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
+		rsIt->surfaceRenderer->setLava(sWater);
+	}
+
+
 void Sandbox::showWaterControlDialogCallback(Misc::CallbackData* cbData)
 	{
 		//std::cout<<"Control"<<std::endl;
@@ -363,7 +384,7 @@ void Sandbox::showWaterControlDialogCallback(Misc::CallbackData* cbData)
 
 void Sandbox::waterSpeedSliderCallback(GLMotif::TextFieldSlider::ValueChangedCallbackData* cbData)
 	{
-		waterSpeed=cbData->value;
+		waterSpeed = cbData->value;
 	}
 
 void Sandbox::waterMaxStepsSliderCallback(GLMotif::TextFieldSlider::ValueChangedCallbackData* cbData)
@@ -415,7 +436,7 @@ GLMotif::PopupMenu* Sandbox::createMainMenu(void)
 
 GLMotif::PopupWindow* Sandbox::createWaterControlDialog(void)
 	{
-	std::cout<<"createWaterControlDialog"<<std::endl;
+	//std::cout<<"createWaterControlDialog"<<std::endl;
 	const GLMotif::StyleSheet& ss=*Vrui::getWidgetManager()->getStyleSheet();
 	
 	/* Create a popup window shell: */
@@ -641,8 +662,8 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 	wtSize[0]=640;
 	wtSize[1]=480;
 	wtSize=cfg.retrieveValue<Misc::FixedArray<unsigned int,2> >("./waterTableSize",wtSize);
-	waterSpeed=cfg.retrieveValue<double>("./waterSpeed",1.0);
-	lavaSpeed=cfg.retrieveValue<double>("./lavaSpeed",0.45);
+	waterSpeed=cfg.retrieveValue<double>("./waterSpeed",0.8);
+	lavaSpeed=cfg.retrieveValue<double>("./lavaSpeed",0.4);
 	waterMaxSteps=cfg.retrieveValue<unsigned int>("./waterMaxSteps",30U);
 	Math::Interval<double> rainElevationRange=cfg.retrieveValue<Math::Interval<double> >("./rainElevationRange",Math::Interval<double>(-1000.0,1000.0));
 	rainStrength=cfg.retrieveValue<GLfloat>("./rainStrength",0.25f);
@@ -894,7 +915,7 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 		Kinect::DirectFrameSource* realCamera=Kinect::openDirectFrameSource(cameraIndex);//kinect-> "0"
 		Misc::ConfigurationFileSection cameraConfigurationSection = cfg.getSection(cameraConfiguration.c_str());// -> "Camera"
 		realCamera->configure(cameraConfigurationSection);	
-		std::cout<<"Teoria-> " << camera << std::endl;
+		//std::cout<<"Teoria-> " << camera << std::endl;
 		camera=realCamera;// 0x21cb030
 	}	
 	for(int i=0;i<2;++i)
@@ -1042,17 +1063,29 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 		}
 	
 	if(waterSpeed>0.0)
-		{
+	{
 		/* Inicializar la simulación de flujo de agua: */
-		waterTable=new WaterTable2(wtSize[0],wtSize[1],depthImageRenderer,basePlaneCorners);
+		waterTable = new WaterTable2(wtSize[0],wtSize[1],depthImageRenderer,basePlaneCorners);
 		waterTable->setElevationRange(elevationRange.getMin(),rainElevationRange.getMax());
 		waterTable->setWaterDeposit(evaporationRate);
 		
 		/* Registrar una función de render con la tabla de agua: */
+		addWaterFunction = Misc::createFunctionCall(this,&Sandbox::addWater);
+		waterTable->addRenderFunction(addWaterFunction);
+		addWaterFunctionRegistered=true;
+	}/*
+	if(lavaSpeed>0.0)
+	{
+		/* Inicializar la simulación de flujo de agua: *
+		waterTable = new WaterTable2(wtSize[0],wtSize[1],depthImageRenderer,basePlaneCorners);
+		waterTable->setElevationRange(elevationRange.getMin(),rainElevationRange.getMax());
+		waterTable->setWaterDeposit(evaporationRate);
+		
+		/* Registrar una función de render con la tabla de agua: *
 		addWaterFunction=Misc::createFunctionCall(this,&Sandbox::addWater);
 		waterTable->addRenderFunction(addWaterFunction);
 		addWaterFunctionRegistered=true;
-		}
+	}
 	
 	/* Inicialice todos los renderizadores de superficie: */
 	for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
@@ -1073,6 +1106,7 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 		rsIt->surfaceRenderer->setContourLineDistance(rsIt->contourLineSpacing);
 		rsIt->surfaceRenderer->setElevationColorMap(rsIt->elevationColorMap);
 		rsIt->surfaceRenderer->setIlluminate(rsIt->hillshade);
+		rsIt->surfaceRenderer->setLava(rsIt->useLava);
 		if(waterTable!=0)
 			{
 			if(rsIt->renderWaterSurface)
@@ -1111,17 +1145,21 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 	GlobalWaterTool::initClass(*Vrui::getToolManager());
 	LocalWaterTool::initClass(*Vrui::getToolManager());
 	DEMTool::initClass(*Vrui::getToolManager());
+	HeightColorMapTool::initClass(*Vrui::getToolManager());
+	ContourLineTool::initClass(*Vrui::getToolManager());
+	WaterLevelTool::initClass(*Vrui::getToolManager());
+	WaterDisableTool::initClass(*Vrui::getToolManager());
 	if(waterTable!=0)
 		BathymetrySaverTool::initClass(waterTable,*Vrui::getToolManager());
 	addEventTool("Pause Topography",0,0);
 	
 	if(!controlPipeName.empty())
-		{
+	{
 		/* Abra el conducto de control en modo de no bloqueo: */
 		controlPipeFd=open(controlPipeName.c_str(),O_RDONLY|O_NONBLOCK);
 		if(controlPipeFd<0)
 			std::cerr<<"Unable to open control pipe "<<controlPipeName<<"; ignoring"<<std::endl;
-		}
+	}
 	//Sandbox::glutKeyboardFunc (  'l', 1, 1  );
 	/* Inhibir el protector de pantalla: */
 	Vrui::inhibitScreenSaver();
@@ -1134,7 +1172,7 @@ Sandbox::Sandbox(int& argc,char**& argv):Vrui::Application(argc,argv),
 Sandbox::~Sandbox(void)
 	{
 	/* Detener los marcos de profundidad de transmisión: */
-	std::cout<<"~Sandbox"<<std::endl;
+	//std::cout<<"~Sandbox"<<std::endl;
 	camera->stopStreaming();
 	delete camera;
 	delete frameFilter;
@@ -1155,7 +1193,7 @@ Sandbox::~Sandbox(void)
 void Sandbox::toolDestructionCallback(Vrui::ToolManager::ToolDestructionCallbackData* cbData)
 	{
 	/* Compruebe si la herramienta destruida es la herramienta activa de DEM: */
-	std::cout<<"Destruction"<<std::endl;
+	//std::cout<<"Destruction"<<std::endl;
 	if(activeDem==dynamic_cast<DEM*>(cbData->tool))
 		{
 		/* Desactive la herramienta activa de DEM: */
@@ -1171,7 +1209,7 @@ Helper functions:
 
 std::vector<std::string> tokenizeLine(const char*& buffer)
 	{
-		std::cout<<"Algo1"<<std::endl;
+		//std::cout<<"Algo1"<<std::endl;
 	std::vector<std::string> result;
 	
 	/* Omita los espacios en blanco iniciales pero no el final de línea: */
@@ -1213,11 +1251,6 @@ bool isToken(const std::string& token,const char* pattern)
 
 }
 
-void Sandbox::glutKeyboardFunc ( unsigned char key, int x, int y ) 
-{
-	Sandbox::keyboard( key, x, y );
-}
-
 void Sandbox::frame(void)
 	{
 	/* Compruebe si el marco filtrado se ha actualizado: */
@@ -1247,7 +1280,7 @@ void Sandbox::frame(void)
 		
 		#endif
 	}
-	std::cout<<"Algoaqyu"<<std::endl;
+	//std::cout<<"Algoaqyu"<<std::endl;
 	
 	/* Actualizar todos los renderizadores de superficie: */
 	for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
@@ -1462,51 +1495,9 @@ void Sandbox::frame(void)
 		Vrui::scheduleUpdate(Vrui::getApplicationTime()+1.0/30.0);
 	}
 
-void Sandbox::keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
-{
-	switch ( key ) {
-		case 'w':   //Movimientos de camara
-		case 'W':
-			std::cerr<<"Unrecognized control pipe command "<<std::endl;
-			break;
-		case 's':
-		case 'S':
-			//camaraZ -=0.5f;
-			break;
-		case 'a':
-		case 'A':
-			//camaraX -= 0.5f;
-			break;
-		case 'd':
-		case 'D':
-			//camaraX += 0.5f;
-			break;
-
-		case 'i':		//Movimientos de Luz
-		case 'I':
-			
-			break;
-		case 'k':
-		case 'K':
-			
-			break;
-
-		case 'l':   //Activamos/desactivamos luz
-		case 'L':
-			break;
-		case 27:        // Cuando Esc es presionado...
-			exit ( 0 );   // Salimos del programa
-			break;        
-		default:        // Cualquier otra
-			break;
-  }
-	//glutPostRedisplay();
-}
-
-
 void Sandbox::display(GLContextData& contextData) const
 	{	
-	std::cout << "Inicio de algo" << std::endl;
+	//std::cout << "Inicio de algo" << std::endl;
 	/* Obtener el elemento de datos: */
 	DataItem* dataItem=contextData.retrieveDataItem<DataItem>(this);
 	
@@ -1519,15 +1510,14 @@ void Sandbox::display(GLContextData& contextData) const
 	const RenderSettings& rs=windowIndex<int(renderSettings.size())?renderSettings[windowIndex]:renderSettings.back();
 	
 	/* Compruebe si el estado de simulación de agua necesita actualizarse: */
-	if(waterTable!=0&&dataItem->waterTableTime!=Vrui::getApplicationTime())
+	if(waterTable !=0 && dataItem->waterTableTime!=Vrui::getApplicationTime())
 		{
 		/* Avtualizar agua table's bathymetry grid: */
 		waterTable->updateBathymetry(contextData);
-		
 		/* Ejecutar el paso principal de simulaciones de flujo de agua: */
-		GLfloat totalTimeStep=GLfloat(Vrui::getFrameTime()*waterSpeed);
+		GLfloat totalTimeStep = GLfloat(Vrui::getFrameTime()*waterSpeed);
 		unsigned int numSteps=0;
-		while(numSteps<waterMaxSteps-1U&&totalTimeStep>1.0e-8f)
+		while((numSteps < waterMaxSteps-1U) && (totalTimeStep > 1.0e-8f))
 			{
 			/* Ejecutar con un paso de tiempo autodeterminado para mantener la estabilidad: */
 			waterTable->setMaxStepSize(totalTimeStep);
@@ -1755,7 +1745,7 @@ void Sandbox::display(GLContextData& contextData) const
 
 void Sandbox::resetNavigation(void)
 	{
-		std::cout<<"Algo2"<<std::endl;
+		//std::cout<<"Algo2"<<std::endl;
 	/* Construya una transformación de navegación para centrar el área de la caja de arena en la pantalla, 
 	   de cara al espectador, con el eje largo de la caja de arena hacia la derecha: */
 	Vrui::NavTransform nav=Vrui::NavTransform::translateFromOriginTo(Vrui::getDisplayCenter());

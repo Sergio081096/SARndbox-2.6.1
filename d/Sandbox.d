@@ -7,4 +7,5 @@ $(OBJDIR)/Sandbox.o: Sandbox.cpp  Sandbox.h \
  WaterTable2.h HandExtractor.h \
   WaterRenderer.h \
  GlobalWaterTool.h LocalWaterTool.h DEMTool.h \
- BathymetrySaverTool.h Config.h
+ BathymetrySaverTool.h HeightColorMapTool.h ContourLineTool.h \
+ WaterLevelTool.h WaterDisableTool.h Config.h
