@@ -173,7 +173,7 @@ class Sandbox:public Vrui::Application,public GLObject
 	void rawDepthFrameDispatcher(const Kinect::FrameBuffer& frameBuffer); // Devolución de llamada que recibe fotogramas de profundidad sin procesar de la cámara Kinect; los reenvía al filtro de marco y a los objetos de lluvia
 	void receiveFilteredFrame(const Kinect::FrameBuffer& frameBuffer); // Devolución de llamada que recibe marcos de profundidad filtrados del objeto de filtro
 	void toggleDEM(DEM* dem); // Establece o alterna el DEM actualmente activo
-	void addWater(GLContextData& contextData) const; // Función para renderizar geometría que agrega agua a la capa freática
+	void addWater(GLContextData& contextData); //const; // Función para renderizar geometría que agrega agua a la capa freática
 	void pauseUpdatesCallback(GLMotif::ToggleButton::ValueChangedCallbackData* cbData);
 	void pauseLineCallback(GLMotif::ToggleButton::ValueChangedCallbackData* cbData);
 	void lavaCallback(bool sLava);

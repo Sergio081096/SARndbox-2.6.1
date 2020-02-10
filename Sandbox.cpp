@@ -311,7 +311,7 @@ void Sandbox::toggleDEM(DEM* dem)
 			rsIt->surfaceRenderer->setDem(activeDem);
 	}
 
-void Sandbox::addWater(GLContextData& contextData) const
+void Sandbox::addWater(GLContextData& contextData) //const
 	{
 	/* Compruebe si la lista de objetos de lluvia más reciente no está vacía: */
 	//std::cout<<"addWater"<<std::endl;
@@ -320,7 +320,9 @@ void Sandbox::addWater(GLContextData& contextData) const
 		/* Renderiza todos los objetos de lluvia al nivel de la mesa: */
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_CULL_FACE);
-		
+
+		for(std::vector<RenderSettings>::iterator rsIt=renderSettings.begin();rsIt!=renderSettings.end();++rsIt)
+			rsIt->surfaceRenderer->setLava(false);
 		/* Cree un marco de coordenadas locales para renderizar discos de lluvia: */
 		Vector z=waterTable->getBaseTransform().inverseTransform(Vector(0,0,1));
 		Vector x=Geometry::normal(z);
